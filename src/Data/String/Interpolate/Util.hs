@@ -1,18 +1,22 @@
+{-# LANGUAGE ViewPatterns, ScopedTypeVariables #-}
 module Data.String.Interpolate.Util where
 
 import           Data.Char
-import           Data.Maybe
+import           Data.Typeable
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Numeric as N
 
-import           Data.String.Interpolate.Compat
 
-toString :: Show a => a -> String
-toString a = let s = show a in fromMaybe s (readMaybe s)
-{-# RULES "toString/String" toString = id #-}
-{-# RULES "toString/Int" toString = show :: Int -> String #-}
-{-# RULES "toString/Integer" toString = show :: Integer -> String #-}
-{-# RULES "toString/Float" toString = show :: Float -> String #-}
-{-# RULES "toString/Double" toString = show :: Double -> String #-}
+toString :: (Show a, Typeable a) => a -> String
+toString (cast -> Just (s :: String)) = s
+toString (cast -> Just (s :: T.Text)) = T.unpack s
+toString (cast -> Just (s :: TL.Text)) = TL.unpack s
+toString (cast -> Just (s :: BS.ByteString)) = BS.unpack s
+toString (cast -> Just (s :: BSL.ByteString)) = BSL.unpack s
+toString x = show x
 
 -- Haskell 2010 character unescaping, see:
 -- http://www.haskell.org/onlinereport/haskell2010/haskellch2.html#x7-200002.6

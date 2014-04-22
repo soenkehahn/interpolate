@@ -31,6 +31,8 @@ library
       base    == 4.*
     , template-haskell
     , haskell-src-meta
+    , text
+    , bytestring
 
 test-suite spec
   type:
