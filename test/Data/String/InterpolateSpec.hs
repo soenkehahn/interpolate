@@ -23,3 +23,6 @@ spec = do
 
     it "accepts character escapes in interpolated expressions" $ do
       [i|foo #{"\955" :: String} bar|] `shouldBe` "foo \955 bar"
+
+    it "allows to create strings with backslashes" $ do
+      [i|\\|] `shouldBe` "\\"
