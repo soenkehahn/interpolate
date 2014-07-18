@@ -7,11 +7,15 @@ module Data.String.Interpolate (
 --
 -- >>> :set -XQuasiQuotes
 -- >>> import Data.String.Interpolate
-  i
+  i,
+  normalizeLines,
 ) where
 
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 import           Language.Haskell.Meta.Parse.Careful (parseExp)
+import           Control.Arrow
+import           Data.Char
+import           Data.List
 
 import           Data.String.Interpolate.Util
 import           Data.String.Interpolate.Parse
@@ -62,3 +66,26 @@ i = QuasiQuoter {
             reportError "Parse error in expression!"
             [|""|]
           Right e -> return e
+
+-- |
+-- Normalizes multiline texts. Strips all surrounding whitespace
+-- and newlines and removes indentation as much as possible while
+-- preserving relative indentation levels.
+normalizeLines :: String -> String
+normalizeLines string =
+    (lines >>>
+     -- strip empty lines at start and end
+     dropWhile (all isSpace) >>> reverse >>> dropWhile null >>> reverse >>>
+     -- strip indentation
+     stripIndentation >>>
+     -- concatenate lines together
+     intercalate "\n") string
+  where
+    stripIndentation :: [String] -> [String]
+    stripIndentation ls =
+        map (drop (minimalIndentation ls)) ls
+    minimalIndentation :: [String] -> Int
+    minimalIndentation =
+      filter (any (not . isSpace)) >>>
+      map (length . takeWhile (== ' ')) >>>
+      minimum
