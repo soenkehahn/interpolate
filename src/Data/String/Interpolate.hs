@@ -7,8 +7,9 @@ module Data.String.Interpolate (
 --
 -- >>> :set -XQuasiQuotes
 -- >>> import Data.String.Interpolate
-  i,
-  normalizeLines,
+  i
+, unindent
+, normalizeLines
 ) where
 
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
@@ -66,6 +67,37 @@ i = QuasiQuoter {
             reportError "Parse error in expression!"
             [|""|]
           Right e -> return e
+
+unindent :: String -> String
+unindent input = (
+    unlines_
+  . removeIndentation
+  . removeTrailingEmptyLines
+  . removeLeadingEmptyLines
+  . lines
+  ) input
+  where
+    isEmptyLine = all isSpace
+
+    unlines_ = if endsWithNewline || hasTrailingEmptyLines then unlines else intercalate "\n"
+      where
+        endsWithNewline = case reverse input of
+          x:xs -> x == '\n'
+          _ -> False
+        hasTrailingEmptyLines = (takeWhile isEmptyLine . reverse . lines) input /= []
+
+    removeLeadingEmptyLines = dropWhile isEmptyLine
+    removeTrailingEmptyLines = reverse . dropWhile isEmptyLine . reverse
+
+    removeIndentation :: [String] -> [String]
+    removeIndentation ys = map (drop indentation) ys
+      where
+        indentation = minimalIndentation ys
+        minimalIndentation =
+            minimum
+          . map (length . takeWhile (== ' '))
+          . removeEmptyLines
+        removeEmptyLines = filter (not . isEmptyLine)
 
 -- |
 -- Normalizes multiline texts. Strips all surrounding whitespace
