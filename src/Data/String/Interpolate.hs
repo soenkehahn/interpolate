@@ -77,8 +77,10 @@ unindent input = (
   . lines
   ) input
   where
+    isEmptyLine :: String -> Bool
     isEmptyLine = all isSpace
 
+    unlines_ :: [String] -> String
     unlines_ = if endsWithNewline || hasTrailingEmptyLines then unlines else intercalate "\n"
       where
         endsWithNewline = case reverse input of
@@ -86,7 +88,10 @@ unindent input = (
           _ -> False
         hasTrailingEmptyLines = (takeWhile isEmptyLine . reverse . lines) input /= []
 
+    removeLeadingEmptyLines :: [String] -> [String]
     removeLeadingEmptyLines = dropWhile isEmptyLine
+
+    removeTrailingEmptyLines :: [String] -> [String]
     removeTrailingEmptyLines = reverse . dropWhile isEmptyLine . reverse
 
     removeIndentation :: [String] -> [String]
