@@ -69,6 +69,25 @@ i = QuasiQuoter {
             [|""|]
           Right e -> return e
 
+-- | Remove indentation as much as possible while preserving relative
+-- indentation levels.
+--
+-- In addition empty lines at the beginning and the end of the string are
+-- removed.
+--
+-- `unindent` can be used in combination `i` to allow you to indent your code
+-- without affecting your string literals.  Here is an example:
+--
+-- > >>> :{
+-- > >>| putStr $ unindent [i|
+-- > >>|    def foo
+-- > >>|      23
+-- > >>|    end
+-- > >>|    |]
+-- > >>| :}
+-- > def foo
+-- >  23
+-- > end
 unindent :: String -> String
 unindent input = result
   where
