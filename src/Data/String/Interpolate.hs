@@ -12,6 +12,7 @@ module Data.String.Interpolate (
 , normalizeLines
 ) where
 
+import           Control.Applicative
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 import           Language.Haskell.Meta.Parse.Careful (parseExp)
 import           Control.Arrow
@@ -69,14 +70,10 @@ i = QuasiQuoter {
           Right e -> return e
 
 unindent :: String -> String
-unindent input = (
-    unlines_
-  . removeIndentation
-  . removeTrailingEmptyLines
-  . removeLeadingEmptyLines
-  . lines
-  ) input
+unindent input = result
   where
+    (trailingEmptyLines, result) = unlines_ . removeIndentation . removeLeadingEmptyLines <$> splitTrailingEmptyLines (lines input)
+
     isEmptyLine :: String -> Bool
     isEmptyLine = all isSpace
 
@@ -86,13 +83,13 @@ unindent input = (
         endsWithNewline = case reverse input of
           x:_ -> x == '\n'
           _ -> False
-        hasTrailingEmptyLines = (takeWhile isEmptyLine . reverse . lines) input /= []
+        hasTrailingEmptyLines = (not . null) trailingEmptyLines
 
     removeLeadingEmptyLines :: [String] -> [String]
     removeLeadingEmptyLines = dropWhile isEmptyLine
 
-    removeTrailingEmptyLines :: [String] -> [String]
-    removeTrailingEmptyLines = reverse . dropWhile isEmptyLine . reverse
+    splitTrailingEmptyLines :: [String] -> ([String], [String])
+    splitTrailingEmptyLines = fmap reverse . span isEmptyLine . reverse
 
     removeIndentation :: [String] -> [String]
     removeIndentation ys = map (drop indentation) ys
