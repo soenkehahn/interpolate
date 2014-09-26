@@ -82,7 +82,7 @@ unindent input = (
     unlines_ = if endsWithNewline || hasTrailingEmptyLines then unlines else intercalate "\n"
       where
         endsWithNewline = case reverse input of
-          x:xs -> x == '\n'
+          x:_ -> x == '\n'
           _ -> False
         hasTrailingEmptyLines = (takeWhile isEmptyLine . reverse . lines) input /= []
 
