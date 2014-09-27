@@ -3,7 +3,6 @@ module Data.String.InterpolateSpec (main, spec) where
 
 import           Test.Hspec
 import           Test.QuickCheck
-import           Data.Char
 
 import           Data.String.Interpolate
 
@@ -38,17 +37,23 @@ spec = do
     it "is total" $ do
       property $ \xs -> length (unindent xs) >= 0
 
-    it "removes empty lines from the beginning of the string" $ do
-      let xs = "  foo\nbar\n baz\n"
-      unindent ("  \n\n \t \n" ++ xs) `shouldBe` xs
-
-    it "removes empty lines from the end of the string" $ do
-      let xs = "foo\n  bar\nbaz  \n"
-      unindent (xs ++ "  \n\n \t \n") `shouldBe` xs
-
     it "removes indentation" $ do
       let xs = "    foo\n  bar\n   baz  \n"
       unindent xs `shouldBe` "  foo\nbar\n baz  \n"
+
+    it "removes the first line of the string if it is empty" $ do
+      let xs = "  foo\nbar\n baz\n"
+      unindent ("\n" ++ xs) `shouldBe` xs
+
+    it "empties the last line if it only consists of whitespace" $ do
+      let xs = "foo\n  "
+      unindent xs `shouldBe` "foo\n"
+
+    it "does not affect whitespace lines at the beginning" $ do
+      unindent "  \n  \nfoo" `shouldBe` "  \n  \nfoo"
+
+    it "does not affect other whitespace lines at the end" $ do
+      unindent "foo\n  \n  " `shouldBe` "foo\n  \n"
 
     it "disregards empty lines when calculating indentation" $ do
       let xs = "  foo\n\n \n  bar\n"
@@ -58,50 +63,5 @@ spec = do
       let xs = "foo"
       unindent xs `shouldBe` xs
 
-    it "correctly handles strings with trailing whitespace" $ do
-      let xs = "foo\n  "
-      unindent xs `shouldBe` "foo\n"
-
-    it "correctly handles strings that only consist of empty lines" $ do
-      let xs = "  \n  \n"
-      unindent xs `shouldBe` ""
-
-  describe "normalizeLines" $ do
-    it "is total" $ do
-      property $ \ string -> length (normalizeLines string) >= 0
-
-    it "removes indentation consistently" $ do
-      normalizeLines [i|
-        foo
-          bar
-            foo
-
-        baz
-       |] `shouldBe`
-        "foo\n  bar\n    foo\n\nbaz\n"
-
-    let headMay (a : _) = Just a
-        headMay [] = Nothing
-    it "removes the first line if it only consists of whitespace" $ do
-      property $ \ text ->
-        (maybe False (any (not . isSpace)) (headMay (lines text))) ==>
-        (\ n ->
-          normalizeLines (replicate n ' ' ++ "\n" ++ text) ===
-            normalizeLines text)
-
-    it "disregards lines containing only whitespace when calculating indentation" $ do
-      normalizeLines "    foo\n  \n      \n    bar" `shouldBe`
-        "foo\n\n  \nbar"
-
-    it "allows to create strings with no trailing newline" $ do
-      normalizeLines [i|
-        foo|] `shouldBe`
-          "foo"
-
-    it "does not end with a newline when the input ends with something other than a whitespace or newline" $ do
-      property $ \ string ->
-        not (null string) ==>
-        not (last string `elem` [' ', '\n']) ==>
-        let result = normalizeLines string
-        in not (null result) ==>
-           last result /= '\n'
+    it "does not affect lines consisting of whitespace (apart from unindenting)" $ do
+      unindent " foo\n  \n bar" `shouldBe` "foo\n \nbar"

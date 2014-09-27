@@ -9,15 +9,12 @@ module Data.String.Interpolate (
 -- >>> import Data.String.Interpolate
   i
 , unindent
-, normalizeLines
 ) where
 
-import           Control.Applicative
+import           Control.Arrow ((>>>))
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 import           Language.Haskell.Meta.Parse.Careful (parseExp)
-import           Control.Arrow
 import           Data.Char
-import           Data.List
 
 import           Data.String.Interpolate.Util
 import           Data.String.Interpolate.Parse
@@ -72,73 +69,62 @@ i = QuasiQuoter {
 -- | Remove indentation as much as possible while preserving relative
 -- indentation levels.
 --
--- In addition empty lines at the beginning and the end of the string are
--- removed.
+-- `unindent` is meant to be used in combination with `i` to allow you to indent
+-- your code without affecting your string literals.  Here is an example:
 --
--- `unindent` can be used in combination `i` to allow you to indent your code
--- without affecting your string literals.  Here is an example:
+-- >>> :{
+--  putStr $ unindent [i|
+--      def foo
+--        23
+--      end
+--    |]
+-- :}
+-- def foo
+--   23
+-- end
 --
--- > >>> :{
--- > >>| putStr $ unindent [i|
--- > >>|    def foo
--- > >>|      23
--- > >>|    end
--- > >>|    |]
--- > >>| :}
--- > def foo
--- >  23
--- > end
+-- To allow this, two additional things are being done, apart from removing
+-- indentation:
+--
+-- - One empty line at the beginning will be removed and
+-- - if the last line consists only of whitespace, it will be trimmed to @"\\n"@.
 unindent :: String -> String
-unindent input = result
+unindent input =
+    (lines_ >>>
+     removeLeadingEmptyLine >>>
+     trimLastLine >>>
+     removeIndentation >>>
+     concat) input
   where
-    (trailingEmptyLines, result) = unlines_ . removeIndentation . removeLeadingEmptyLines <$> splitTrailingEmptyLines (lines input)
-
     isEmptyLine :: String -> Bool
     isEmptyLine = all isSpace
 
-    unlines_ :: [String] -> String
-    unlines_ = if endsWithNewline || hasTrailingEmptyLines then unlines else intercalate "\n"
-      where
-        endsWithNewline = case reverse input of
-          x:_ -> x == '\n'
-          _ -> False
-        hasTrailingEmptyLines = (not . null) trailingEmptyLines
+    lines_ :: String -> [String]
+    lines_ [] = []
+    lines_ s = case span (/= '\n') s of
+      (first, '\n' : rest) -> (first ++ "\n") : lines_ rest
+      (first, rest) -> first : lines_ rest
 
-    removeLeadingEmptyLines :: [String] -> [String]
-    removeLeadingEmptyLines = dropWhile isEmptyLine
+    removeLeadingEmptyLine :: [String] -> [String]
+    removeLeadingEmptyLine ("\n" : r) = r
+    removeLeadingEmptyLine l = l
 
-    splitTrailingEmptyLines :: [String] -> ([String], [String])
-    splitTrailingEmptyLines = fmap reverse . span isEmptyLine . reverse
+    trimLastLine :: [String] -> [String]
+    trimLastLine (a : b : r) = a : trimLastLine (b : r)
+    trimLastLine [a] = if all (== ' ') a
+      then []
+      else [a]
+    trimLastLine [] = []
 
     removeIndentation :: [String] -> [String]
-    removeIndentation ys = map (drop indentation) ys
+    removeIndentation ys = map (dropSpaces indentation) ys
       where
+        dropSpaces 0 s = s
+        dropSpaces n (' ' : r) = dropSpaces (n - 1) r
+        dropSpaces _ s = s
         indentation = minimalIndentation ys
         minimalIndentation =
             minimum
           . map (length . takeWhile (== ' '))
           . removeEmptyLines
         removeEmptyLines = filter (not . isEmptyLine)
-
--- |
--- Normalizes multiline texts. Strips all surrounding whitespace
--- and newlines and removes indentation as much as possible while
--- preserving relative indentation levels.
-normalizeLines :: String -> String
-normalizeLines string =
-    (lines >>>
-     -- strip empty lines at start and end
-     dropWhile (all isSpace) >>> reverse >>> dropWhile null >>> reverse >>>
-     -- strip indentation
-     stripIndentation >>>
-     -- concatenate lines together
-     intercalate "\n") string
-  where
-    stripIndentation :: [String] -> [String]
-    stripIndentation ls =
-        map (drop (minimalIndentation ls)) ls
-    minimalIndentation :: [String] -> Int
-    minimalIndentation =
-      filter (any (not . isSpace)) >>>
-      map (length . takeWhile (== ' ')) >>>
-      minimum
